@@ -29,7 +29,7 @@ import (
 	"github.com/minio/simdjson-go"
 )
 
-func parseInNetworkRates(filename, rootUUUID string, serviceList StringSet) {
+func parseInNetworkRates(filename, rootUUUID string) {
 	const LinesAtATime int = 100
 
 	var line string
@@ -64,7 +64,7 @@ func parseInNetworkRates(filename, rootUUUID string, serviceList StringSet) {
 			lines := strBuilder.String()
 
 			inPoolGroup.Submit(func() {
-				parseInLines(&lines, rootUUUID, serviceList)
+				parseInLines(&lines, rootUUUID)
 			})
 
 			lineCount = 0
@@ -90,14 +90,14 @@ func parseInNetworkRates(filename, rootUUUID string, serviceList StringSet) {
 		lines := strBuilder.String()
 
 		inPoolGroup.Submit(func() {
-			parseInLines(&lines, rootUUUID, serviceList)
+			parseInLines(&lines, rootUUUID)
 		})
 	}
 
 	log.Info("Completed reading negotiated_rates: ", filename)
 }
 
-func parseInLines(lines *string, rootUUID string, serviceList StringSet) {
+func parseInLines(lines *string, rootUUID string) {
 	parsed, err := utils.ParseJSON(lines, nil)
 	utils.ExitOnError(err)
 
@@ -120,7 +120,7 @@ func parseInLines(lines *string, rootUUID string, serviceList StringSet) {
 			}
 
 			// Parse in_network_rates object
-			mrfList, err = parseInObject(tmpIter, rootUUID, serviceList)
+			mrfList, err = parseInObject(tmpIter, rootUUID)
 			// if we get a NotInListError, skip this record as it's not in the serviceList
 			if e, ok := err.(*NotInListError); ok {
 				log.Tracef("Skipping in_network_rates record. %s", e.Error())
@@ -138,7 +138,7 @@ func parseInLines(lines *string, rootUUID string, serviceList StringSet) {
 	}
 }
 
-func parseInObject(iter *simdjson.Iter, rootUUID string, serviceList StringSet) ([]*models.Mrf, error) {
+func parseInObject(iter *simdjson.Iter, rootUUID string) ([]*models.Mrf, error) {
 	var (
 		err                 error
 		mrf                 *models.Mrf
@@ -147,7 +147,7 @@ func parseInObject(iter *simdjson.Iter, rootUUID string, serviceList StringSet) 
 	)
 
 	// Parse the root of the in_network_rates record
-	mrf, err = parseInRoot(iter, rootUUID, serviceList)
+	mrf, err = parseInRoot(iter, rootUUID)
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +390,7 @@ func parseNPServiceCodes(iter *simdjson.Iter, billingClass string) ([]string, er
 }
 
 // isServiceInList gets the billing_code_type and code and determines if the service is in serviceList
-func isServiceInList(tmpIter *simdjson.Iter, serviceList StringSet) (billingCodeType, billingCode string, ok bool) {
+func isServiceInList(tmpIter *simdjson.Iter) (billingCodeType, billingCode string) {
 	bct, err := utils.GetElementValue[string]("billing_code_type", tmpIter)
 	if err != nil {
 		utils.ExitOnError(err)
@@ -401,20 +401,16 @@ func isServiceInList(tmpIter *simdjson.Iter, serviceList StringSet) (billingCode
 		utils.ExitOnError(err)
 	}
 
-	return bct, bc, ((bct == "HCPCS" || bct == "CPT") && serviceList.Contains(bc))
+	return bct, bc
 }
 
 // parseInRoot parses the root of the in_network file, returning an Mrf record.
 // If the service is not in the serviceList, it returns a NotInServiceListError
-func parseInRoot(iter *simdjson.Iter, rootUUID string, serviceList StringSet) (*models.Mrf, error) {
+func parseInRoot(iter *simdjson.Iter, rootUUID string) (*models.Mrf, error) {
 	var uuid = utils.GetUniqueID()
 
 	// Get the billing_code_type and code and determine if in serviceList
-	inBillingCodeType, inBillingCode, ok := isServiceInList(iter, serviceList)
-	if !ok {
-		// This is not a service we care about. Skip it.
-		return nil, &NotInListError{inBillingCode}
-	}
+	inBillingCodeType, inBillingCode := isServiceInList(iter)
 
 	log.Tracef("Found service %s %s", inBillingCodeType, inBillingCode)
 

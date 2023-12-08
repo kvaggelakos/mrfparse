@@ -66,12 +66,12 @@ func NewParsePipeline(inputPath, outputPath, serviceFile string, planID int64) *
 	srcFilePath = strings.Split(srcFilePath, "?")[0]
 
 	steps = []Step{
-		&DownloadStep{
-			URL:        inputPath,
-			OutputPath: srcFilePath,
-		},
+		// &DownloadStep{
+		// 	URL:        inputPath,
+		// 	OutputPath: srcFilePath,
+		// },
 		&SplitStep{
-			InputPath:  srcFilePath,
+			InputPath:  inputPath,
 			OutputPath: tmpPathSplit,
 			Overwrite:  true,
 		},

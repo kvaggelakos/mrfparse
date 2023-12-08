@@ -72,8 +72,8 @@ func Parse(inputPath, outputPath string, planID int64, serviceFile string) {
 	WriteRecords = NewRecordWriter(wc)
 
 	// Load service list that we'll use to filter for services we care about
-	serviceList := loadServiceList(serviceFile)
-	log.Info("Loaded ", serviceList.Cardinality(), " services.")
+	// serviceList := loadServiceList(serviceFile)
+	// log.Info("Loaded ", serviceList.Cardinality(), " services.")
 
 	// Get list of files in inputPath. We expect to find a root file and in_network_rate and provider_references files
 	filesList, err := cloud.Glob(context.TODO(), inputPath, "*.json*")
@@ -93,7 +93,7 @@ func Parse(inputPath, outputPath string, planID int64, serviceFile string) {
 		f := filepath.Base(filesList[i])
 		if strings.HasPrefix(f, "in_network_") {
 			log.Info("Found in_network_rate file", filename)
-			parseInNetworkRates(filesList[i], rootUUID, serviceList)
+			parseInNetworkRates(filesList[i], rootUUID)
 		}
 	}
 
